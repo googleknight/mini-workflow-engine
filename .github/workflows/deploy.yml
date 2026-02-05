@@ -11,19 +11,50 @@ env:
   BACKEND_REPO: backend-repo
   FRONTEND_REPO: frontend-repo
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  deploy:
+  changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/deploy.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/deploy.yml'
+
+  build-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: "read"
       id-token: "write"
-
+    outputs:
+      tag: ${{ steps.meta.outputs.TAG }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build Tag Info
+        id: meta
+        run: echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Google Auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
@@ -31,45 +62,110 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      # Backend Build & Deploy
-      - name: Build Backend Info
-        id: backend-meta
-        run: echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Backend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
-          tags: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_REPO }}/backend:${{ steps.backend-meta.outputs.TAG }}
 
-      - name: Deploy Backend
-        uses: google-github-actions/deploy-cloudrun@v2
+          tags: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_REPO }}/backend:${{ steps.meta.outputs.TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: "read"
+      id-token: "write"
+    outputs:
+      tag: ${{ steps.meta.outputs.TAG }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Tag Info
+        id: meta
+        run: echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v3
         with:
-          service: workflow-backend
-          image: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_REPO }}/backend:${{ steps.backend-meta.outputs.TAG }}
-          region: ${{ env.REGION }}
-          flags: --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:workflow-db
-          env_vars: |
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            NODE_ENV=production
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
-      # Frontend Build & Deploy
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and Push Frontend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=https://workflow-backend-pw42423.a.run.app 
-            # Note: You need to replace the URL above after first deployment or use runtime env injection
-          tags: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.FRONTEND_REPO }}/frontend:${{ steps.backend-meta.outputs.TAG }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+          tags: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.FRONTEND_REPO }}/frontend:${{ steps.meta.outputs.TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-backend:
+    needs: build-backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - name: Google Auth
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Backend
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: workflow-backend
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_REPO }}/backend:${{ needs.build-backend.outputs.tag }}
+          region: ${{ env.REGION }}
+          flags: --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:workflow-db --allow-unauthenticated --ingress=all
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            NODE_ENV=production
+
+  deploy-frontend:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - name: Google Auth
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy Frontend
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: workflow-frontend
-          image: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.FRONTEND_REPO }}/frontend:${{ steps.backend-meta.outputs.TAG }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.FRONTEND_REPO }}/frontend:${{ needs.build-frontend.outputs.tag }}
           region: ${{ env.REGION }}
