@@ -1,0 +1,75 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-south1
+  BACKEND_REPO: backend-repo
+  FRONTEND_REPO: frontend-repo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+      # Backend Build & Deploy
+      - name: Build Backend Info
+        id: backend-meta
+        run: echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_REPO }}/backend:${{ steps.backend-meta.outputs.TAG }}
+
+      - name: Deploy Backend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: workflow-backend
+          image: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_REPO }}/backend:${{ steps.backend-meta.outputs.TAG }}
+          region: ${{ env.REGION }}
+          flags: --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:workflow-db
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            NODE_ENV=production
+
+      # Frontend Build & Deploy
+      - name: Build and Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://workflow-backend-pw42423.a.run.app 
+            # Note: You need to replace the URL above after first deployment or use runtime env injection
+          tags: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.FRONTEND_REPO }}/frontend:${{ steps.backend-meta.outputs.TAG }}
+
+      - name: Deploy Frontend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: workflow-frontend
+          image: asia-south1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.FRONTEND_REPO }}/frontend:${{ steps.backend-meta.outputs.TAG }}
+          region: ${{ env.REGION }}
