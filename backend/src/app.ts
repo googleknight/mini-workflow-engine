@@ -21,7 +21,7 @@ import swaggerUi from "swagger-ui-express";
 import { openApiDocument } from "./docs/openapi";
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
-app.use("/workflows", workflowRoutes);
+app.use("/api/workflows", workflowRoutes);
 app.use("/t", triggerRoutes);
 
 export default app;
