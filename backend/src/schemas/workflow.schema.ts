@@ -11,6 +11,11 @@ export const FilterStepSchema = z.object({
   ),
 });
 
+export const LogStepSchema = z.object({
+  type: z.literal("log"),
+  message: z.string(),
+});
+
 export const TransformStepSchema = z.object({
   type: z.literal("transform"),
   ops: z.array(
@@ -53,23 +58,28 @@ export const HttpRequestStepSchema = z.object({
 
 export const StepSchema = z.union([
   FilterStepSchema,
+  LogStepSchema,
   TransformStepSchema,
   HttpRequestStepSchema,
 ]);
 
 export const CreateWorkflowSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1, "Workflow name is required"),
   enabled: z.boolean().default(true),
-  steps: z.array(StepSchema).min(1),
+  steps: z.array(StepSchema).min(1, "Workflow must have at least one step"),
 });
 
 export const UpdateWorkflowSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().min(1, "Workflow name cannot be empty").optional(),
   enabled: z.boolean().optional(),
-  steps: z.array(StepSchema).min(1).optional(),
+  steps: z
+    .array(StepSchema)
+    .min(1, "Workflow must have at least one step")
+    .optional(),
 });
 
 export type FilterStep = z.infer<typeof FilterStepSchema>;
+export type LogStep = z.infer<typeof LogStepSchema>;
 export type TransformStep = z.infer<typeof TransformStepSchema>;
 export type HttpRequestStep = z.infer<typeof HttpRequestStepSchema>;
 export type WorkflowStep = z.infer<typeof StepSchema>;

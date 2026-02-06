@@ -1,0 +1,120 @@
+.container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.table th {
+  padding: 1rem;
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.nameCell {
+  display: flex;
+  flex-direction: column;
+}
+
+.workflowName {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.workflowMeta {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--muted-foreground);
+}
+
+.statusDot.enabled {
+  background-color: #10b981; /* Green */
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.statusDot.disabled {
+  background-color: var(--muted-foreground);
+}
+
+.triggerCell code {
+  background-color: var(--muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--foreground);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconBtn:hover {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+.iconBtn.danger:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+[data-theme="dark"] .iconBtn.danger:hover {
+  background-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+.loading,
+.error {
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
