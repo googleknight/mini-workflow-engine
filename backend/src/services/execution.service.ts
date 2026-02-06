@@ -3,6 +3,7 @@ import { WorkflowRunRepository } from "../repositories/workflow-run.repository";
 import {
   WorkflowStep,
   FilterStep,
+  LogStep,
   TransformStep,
   HttpRequestStep,
 } from "../schemas/workflow.schema";
@@ -77,6 +78,9 @@ export class ExecutionService {
     switch (step.type) {
       case "filter":
         return this.executeFilterStep(step, ctx);
+      case "log":
+        this.executeLogStep(step, ctx);
+        return true;
       case "transform":
         this.executeTransformStep(step, ctx);
         return true;
@@ -97,6 +101,11 @@ export class ExecutionService {
       if (condition.op === "neq" && value === target) return false;
     }
     return true;
+  }
+
+  private executeLogStep(step: LogStep, ctx: any): void {
+    const message = this.applyTemplate(step.message, ctx);
+    console.log(`[Workflow Log] ${message}`);
   }
 
   private executeTransformStep(step: TransformStep, ctx: any): void {
