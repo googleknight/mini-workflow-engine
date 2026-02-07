@@ -55,6 +55,10 @@ export class ExecutionService {
       return { runId: run.id.toString(), status: "success" };
     } catch (error: any) {
       // 5. Failure
+      logger.error(
+        { err: error, workflowId: workflow.id },
+        `Workflow execution failed: ${error.message}`,
+      );
 
       const failureMeta = error.response
         ? {
@@ -62,7 +66,10 @@ export class ExecutionService {
             headers: error.response.headers,
             data: error.response.data,
           }
-        : undefined;
+        : {
+            code: error.code,
+            message: error.message,
+          };
 
       await this.runRepository.update(run.id, {
         status: "failed",
@@ -71,7 +78,11 @@ export class ExecutionService {
         failureMeta,
       });
 
-      return { runId: run.id.toString(), status: "failed" };
+      return {
+        runId: run.id.toString(),
+        status: "failed",
+        error: error.message,
+      };
     }
   }
 
@@ -128,10 +139,6 @@ export class ExecutionService {
         }
         case "pick": {
           // pick creates a NEW object with only selected paths
-          // Since we need to modify ctx in place (or replace it),
-          // and ctx is passed by reference, we can't just reassign `ctx`.
-          // However, the requirements say "Modify ctx".
-          // Ideally we should replace the keys of ctx.
           const newCtx = {};
           for (const path of op.paths) {
             const val = get(ctx, path);
@@ -153,21 +160,9 @@ export class ExecutionService {
     step: HttpRequestStep,
     ctx: any,
   ): Promise<void> {
-    let url = step.url;
-    let headers = step.headers || {};
+    const url = this.applyTemplate(step.url, ctx);
+    const headers = step.headers || {};
     let body = {};
-
-    // Template URL & Headers (optional but good practice)
-    // Requirements only mention body templates, but usually URL/headers need it too.
-    // I'll support basic templating in URL/Header values if needed,
-    // but strict requirements only mention data transformation via Transform step before.
-    // "Transform step: ... template: create a string ... to: title".
-    // "HTTP request step ... body: ... value: { 'text': '{{title}}' }"
-
-    // So templating happens in:
-    // 1. Transform step (saving to ctx)
-    // 2. HTTP Body (if mode=custom)
-    // 3. HTTP Header (X-Workflow-Id: {{workflow_id}})
 
     // Resolve Headers
     const resolvedHeaders: Record<string, string> = {};
@@ -184,7 +179,7 @@ export class ExecutionService {
 
     const config: AxiosRequestConfig = {
       method: step.method,
-      url: step.url, // Assuming URL doesn't need templating for now based on samples
+      url,
       headers: resolvedHeaders,
       data: body,
       timeout: step.timeoutMs,
