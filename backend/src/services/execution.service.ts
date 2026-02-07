@@ -1,9 +1,8 @@
-import { Workflow } from "@prisma/client";
+import { Workflow, RunStatus } from "@prisma/client";
 import { WorkflowRunRepository } from "../repositories/workflow-run.repository";
 import {
   WorkflowStep,
   FilterStep,
-  LogStep,
   TransformStep,
   HttpRequestStep,
 } from "../schemas/workflow.schema";
@@ -11,6 +10,12 @@ import axios, { AxiosRequestConfig } from "axios";
 import get from "lodash/get";
 import set from "lodash/set";
 import logger from "../lib/logger";
+import {
+  StepType,
+  FilterOperator,
+  TransformOperator,
+  HttpBodyMode,
+} from "../types/enums";
 
 export class ExecutionService {
   private runRepository: WorkflowRunRepository;
@@ -26,7 +31,7 @@ export class ExecutionService {
     // 2. Create Workflow Run
     const run = await this.runRepository.create({
       workflowId: workflow.id,
-      status: "success", // optimistic default, will update if fails/skips
+      status: RunStatus.SUCCESS, // optimistic default, will update if fails/skips
       startTime: new Date(),
     });
 
@@ -40,19 +45,19 @@ export class ExecutionService {
         if (!shouldContinue) {
           // Filter step returned false -> SKIPPED
           await this.runRepository.update(run.id, {
-            status: "skipped",
+            status: RunStatus.SKIPPED,
             endTime: new Date(),
           });
-          return { runId: run.id.toString(), status: "skipped" };
+          return { runId: run.id.toString(), status: RunStatus.SKIPPED };
         }
       }
 
       // 4. Success
       await this.runRepository.update(run.id, {
-        status: "success",
+        status: RunStatus.SUCCESS,
         endTime: new Date(),
       });
-      return { runId: run.id.toString(), status: "success" };
+      return { runId: run.id.toString(), status: RunStatus.SUCCESS };
     } catch (error: any) {
       // 5. Failure
       logger.error(
@@ -72,7 +77,7 @@ export class ExecutionService {
           };
 
       await this.runRepository.update(run.id, {
-        status: "failed",
+        status: RunStatus.FAILED,
         endTime: new Date(),
         errorMessage: error.message,
         failureMeta,
@@ -80,7 +85,7 @@ export class ExecutionService {
 
       return {
         runId: run.id.toString(),
-        status: "failed",
+        status: RunStatus.FAILED,
         error: error.message,
       };
     }
@@ -88,15 +93,12 @@ export class ExecutionService {
 
   private async executeStep(step: WorkflowStep, ctx: any): Promise<boolean> {
     switch (step.type) {
-      case "filter":
+      case StepType.FILTER:
         return this.executeFilterStep(step, ctx);
-      case "log":
-        this.executeLogStep(step, ctx);
-        return true;
-      case "transform":
+      case StepType.TRANSFORM:
         this.executeTransformStep(step, ctx);
         return true;
-      case "http_request":
+      case StepType.HTTP_REQUEST:
         await this.executeHttpStep(step, ctx);
         return true;
       default:
@@ -109,35 +111,29 @@ export class ExecutionService {
       const value = get(ctx, condition.path);
       const target = condition.value;
 
-      if (condition.op === "eq" && value !== target) return false;
-      if (condition.op === "neq" && value === target) return false;
+      if (condition.op === FilterOperator.EQ && value !== target) return false;
+      if (condition.op === FilterOperator.NEQ && value === target) return false;
     }
     return true;
-  }
-
-  private executeLogStep(step: LogStep, ctx: any): void {
-    const message = this.applyTemplate(step.message, ctx);
-    // Structured log
-    logger.info({ step: "log", message }, `[WORKFLOW_LOG] ${message}`);
   }
 
   private executeTransformStep(step: TransformStep, ctx: any): void {
     for (const op of step.ops) {
       switch (op.op) {
-        case "default": {
+        case TransformOperator.DEFAULT: {
           const current = get(ctx, op.path);
           if (current === undefined || current === null || current === "") {
             set(ctx, op.path, op.value);
           }
           break;
         }
-        case "template": {
+        case TransformOperator.TEMPLATE: {
           // generic template replacement {{var}}
           const processed = this.applyTemplate(op.template, ctx);
           set(ctx, op.to, processed);
           break;
         }
-        case "pick": {
+        case TransformOperator.PICK: {
           // pick creates a NEW object with only selected paths
           const newCtx = {};
           for (const path of op.paths) {
@@ -171,9 +167,9 @@ export class ExecutionService {
     }
 
     // Resolve Body
-    if (step.body?.mode === "ctx") {
+    if (step.body?.mode === HttpBodyMode.CTX) {
       body = ctx;
-    } else if (step.body?.mode === "custom") {
+    } else if (step.body?.mode === HttpBodyMode.CUSTOM) {
       body = this.resolveObjectTemplates(step.body.value, ctx);
     }
 

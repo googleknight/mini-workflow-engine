@@ -1,6 +1,9 @@
+-- CreateEnum
+CREATE TYPE "RunStatus" AS ENUM ('SUCCESS', 'SKIPPED', 'FAILED');
+
 -- CreateTable
 CREATE TABLE "workflows" (
-    "id" BIGSERIAL NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" VARCHAR(255) NOT NULL,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "trigger_path" VARCHAR(64) NOT NULL,
@@ -13,9 +16,9 @@ CREATE TABLE "workflows" (
 
 -- CreateTable
 CREATE TABLE "workflow_runs" (
-    "id" BIGSERIAL NOT NULL,
-    "workflow_id" BIGINT NOT NULL,
-    "status" VARCHAR(20) NOT NULL,
+    "id" SERIAL NOT NULL,
+    "workflow_id" INTEGER NOT NULL,
+    "status" "RunStatus" NOT NULL,
     "start_time" TIMESTAMP(3) NOT NULL,
     "end_time" TIMESTAMP(3),
     "error_message" TEXT,

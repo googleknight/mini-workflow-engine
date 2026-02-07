@@ -10,11 +10,7 @@ const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api`;
 async function handleResponse(res: Response) {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    // Backend returns { message: "..." } in our new error handler
-    // Older or other parts might return { error: "..." }
-    const msg =
-      errorData.message || errorData.error || "An unexpected error occurred";
-    throw new Error(msg);
+    throw errorData;
   }
   return res.json();
 }
@@ -58,8 +54,6 @@ export async function deleteWorkflow(id: string): Promise<void> {
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    const msg =
-      errorData.message || errorData.error || "Failed to delete workflow";
-    throw new Error(msg);
+    throw errorData;
   }
 }

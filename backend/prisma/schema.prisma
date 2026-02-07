@@ -7,6 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RunStatus {
+  SUCCESS
+  SKIPPED
+  FAILED
+}
+
 model Workflow {
   id          Int           @id @default(autoincrement())
   name        String        @db.VarChar(255)
@@ -23,7 +29,7 @@ model Workflow {
 model WorkflowRun {
   id           Int       @id @default(autoincrement())
   workflowId   Int       @map("workflow_id")
-  status       String    @db.VarChar(20)
+  status       RunStatus
   startTime    DateTime  @map("start_time")
   endTime      DateTime? @map("end_time")
   errorMessage String?   @map("error_message")

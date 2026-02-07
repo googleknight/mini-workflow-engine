@@ -1,6 +1,13 @@
 import { ExecutionService } from "../execution.service";
 import { WorkflowRunRepository } from "../../repositories/workflow-run.repository";
 import axios from "axios";
+import { RunStatus } from "@prisma/client";
+import {
+  StepType,
+  FilterOperator,
+  TransformOperator,
+  HttpMethod,
+} from "../../types/enums";
 
 jest.mock("../../repositories/workflow-run.repository");
 jest.mock("axios");
@@ -24,7 +31,7 @@ describe("ExecutionService", () => {
     // Default mock for run creation
     mockRunRepository.create.mockResolvedValue({
       id: 1,
-      status: "success",
+      status: RunStatus.SUCCESS,
     } as any);
     mockRunRepository.update.mockResolvedValue({ id: 1 } as any);
   });
@@ -33,7 +40,12 @@ describe("ExecutionService", () => {
     it("should execute a simple log step and succeed", async () => {
       const workflow = {
         id: 1,
-        steps: [{ type: "log", message: "Hello {{name}}" }],
+        steps: [
+          {
+            type: StepType.TRANSFORM,
+            ops: [{ op: TransformOperator.DEFAULT, path: "test", value: 1 }],
+          },
+        ],
       };
       const payload = { name: "World" };
 
@@ -42,11 +54,11 @@ describe("ExecutionService", () => {
         payload,
       );
 
-      expect(result.status).toBe("success");
+      expect(result.status).toBe(RunStatus.SUCCESS);
       expect(mockRunRepository.create).toHaveBeenCalled();
       expect(mockRunRepository.update).toHaveBeenCalledWith(
         1,
-        expect.objectContaining({ status: "success" }),
+        expect.objectContaining({ status: RunStatus.SUCCESS }),
       );
     });
 
@@ -55,10 +67,15 @@ describe("ExecutionService", () => {
         id: 1,
         steps: [
           {
-            type: "filter",
-            conditions: [{ path: "age", op: "eq", value: 25 }],
+            type: StepType.FILTER,
+            conditions: [{ path: "age", op: FilterOperator.EQ, value: 25 }],
           },
-          { type: "log", message: "This should be skipped" },
+          {
+            type: StepType.TRANSFORM,
+            ops: [
+              { op: TransformOperator.DEFAULT, path: "skipped", value: true },
+            ],
+          },
         ],
       };
       const payload = { age: 30 };
@@ -68,10 +85,10 @@ describe("ExecutionService", () => {
         payload,
       );
 
-      expect(result.status).toBe("skipped");
+      expect(result.status).toBe(RunStatus.SKIPPED);
       expect(mockRunRepository.update).toHaveBeenCalledWith(
         1,
-        expect.objectContaining({ status: "skipped" }),
+        expect.objectContaining({ status: RunStatus.SKIPPED }),
       );
     });
 
@@ -80,8 +97,10 @@ describe("ExecutionService", () => {
         id: 1,
         steps: [
           {
-            type: "transform",
-            ops: [{ op: "default", path: "city", value: "London" }],
+            type: StepType.TRANSFORM,
+            ops: [
+              { op: TransformOperator.DEFAULT, path: "city", value: "London" },
+            ],
           },
         ],
       };
@@ -92,7 +111,7 @@ describe("ExecutionService", () => {
         payload,
       );
 
-      expect(result.status).toBe("success");
+      expect(result.status).toBe(RunStatus.SUCCESS);
       // Context is modified in place
       expect(payload).toEqual({ city: "London" });
     });
@@ -102,8 +121,8 @@ describe("ExecutionService", () => {
         id: 1,
         steps: [
           {
-            type: "http_request",
-            method: "GET",
+            type: StepType.HTTP_REQUEST,
+            method: HttpMethod.GET,
             url: "http://test.com",
             retries: 1,
           },
@@ -117,11 +136,11 @@ describe("ExecutionService", () => {
         {},
       );
 
-      expect(result.status).toBe("failed");
+      expect(result.status).toBe(RunStatus.FAILED);
       expect(mockedAxios).toHaveBeenCalledTimes(2); // Initial try + 1 retry
       expect(mockRunRepository.update).toHaveBeenCalledWith(
         1,
-        expect.objectContaining({ status: "failed" }),
+        expect.objectContaining({ status: RunStatus.FAILED }),
       );
     });
   });
@@ -136,10 +155,10 @@ describe("ExecutionService", () => {
 
     it("executeFilterStep should support eq and neq", () => {
       const step = {
-        type: "filter",
+        type: StepType.FILTER,
         conditions: [
-          { path: "a", op: "eq", value: 1 },
-          { path: "b", op: "neq", value: 2 },
+          { path: "a", op: FilterOperator.EQ, value: 1 },
+          { path: "b", op: FilterOperator.NEQ, value: 2 },
         ],
       };
 
