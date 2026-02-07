@@ -1,13 +1,10 @@
-import { PrismaClient, Workflow } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import {
   CreateWorkflowDTO,
   UpdateWorkflowDTO,
 } from "../schemas/workflow.schema";
 import { v4 as uuidv4 } from "uuid";
-import prisma from "../lib/prisma"; // Assuming a shared prisma instance
-
-// Fallback if shared instance isn't available yet, but better to create it.
-// I will create src/lib/prisma.ts in a bit if it doesn't exist.
+import prisma from "../lib/prisma";
 
 export class WorkflowRepository {
   private prisma: PrismaClient;
@@ -31,10 +28,16 @@ export class WorkflowRepository {
   async findAll() {
     return this.prisma.workflow.findMany({
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        enabled: true,
+        triggerPath: true,
+      },
     });
   }
 
-  async findById(id: bigint) {
+  async findById(id: number) {
     return this.prisma.workflow.findUnique({
       where: { id },
     });
@@ -46,7 +49,7 @@ export class WorkflowRepository {
     });
   }
 
-  async update(id: bigint, data: UpdateWorkflowDTO) {
+  async update(id: number, data: UpdateWorkflowDTO) {
     return this.prisma.workflow.update({
       where: { id },
       data: {
@@ -56,7 +59,7 @@ export class WorkflowRepository {
     });
   }
 
-  async delete(id: bigint) {
+  async delete(id: number) {
     return this.prisma.workflow.delete({
       where: { id },
     });

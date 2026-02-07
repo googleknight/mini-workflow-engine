@@ -34,19 +34,9 @@
   border-bottom: none;
 }
 
-.nameCell {
-  display: flex;
-  flex-direction: column;
-}
-
 .workflowName {
   font-weight: 600;
   margin-bottom: 0.25rem;
-}
-
-.workflowMeta {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
 }
 
 .statusCell {
@@ -69,6 +59,12 @@
 
 .statusDot.disabled {
   background-color: var(--muted-foreground);
+}
+
+.triggerCell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .triggerCell code {
@@ -105,6 +101,10 @@
 .iconBtn.danger:hover {
   background-color: #fee2e2;
   color: #ef4444;
+}
+
+.copySuccess {
+  color: #10b981;
 }
 
 [data-theme="dark"] .iconBtn.danger:hover {

@@ -7,6 +7,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { Plus, CircuitBoard } from "lucide-react";
 import styles from "./page.module.css";
 import { Workflow } from "@/lib/types";
+import { fetchWorkflow } from "@/lib/api";
+import { handleError } from "@/lib/error-handler";
 
 export default function Home() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -17,9 +19,14 @@ export default function Home() {
     setIsEditorOpen(true);
   };
 
-  const handleEdit = (workflow: Workflow) => {
-    setEditingWorkflow(workflow);
-    setIsEditorOpen(true);
+  const handleEdit = async (workflowId: string) => {
+    try {
+      const workflow = await fetchWorkflow(workflowId);
+      setEditingWorkflow(workflow);
+      setIsEditorOpen(true);
+    } catch (error) {
+      handleError(error, "Failed to load workflow for editing");
+    }
   };
 
   const handleClose = () => {
@@ -32,7 +39,7 @@ export default function Home() {
       <header className={styles.header}>
         <div className={styles.logo}>
           <CircuitBoard size={24} color="var(--primary)" />
-          <h1>KisiEngine</h1>
+          <h1>WorkFlowEngine</h1>
         </div>
         <div className={styles.headerActions}>
           <ThemeToggle />

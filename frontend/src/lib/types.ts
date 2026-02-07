@@ -1,8 +1,13 @@
-export interface Workflow {
+// Minimal workflow data for list views
+export interface WorkflowListItem {
   id: string;
   name: string;
   enabled: boolean;
   triggerPath: string;
+}
+
+// Full workflow data for detail views
+export interface Workflow extends WorkflowListItem {
   steps: WorkflowStep[];
   createdAt?: string;
   updatedAt?: string;

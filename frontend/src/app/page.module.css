@@ -14,13 +14,16 @@
   background-color: var(--card);
 }
 
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .logo h1 {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--foreground);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .headerActions {

@@ -7,8 +7,10 @@ import {
   TransformStep,
   HttpRequestStep,
 } from "../schemas/workflow.schema";
-import _ from "lodash";
 import axios, { AxiosRequestConfig } from "axios";
+import get from "lodash/get";
+import set from "lodash/set";
+import logger from "../lib/logger";
 
 export class ExecutionService {
   private runRepository: WorkflowRunRepository;
@@ -53,7 +55,6 @@ export class ExecutionService {
       return { runId: run.id.toString(), status: "success" };
     } catch (error: any) {
       // 5. Failure
-      console.error(`Workflow execution failed for run ${run.id}:`, error);
 
       const failureMeta = error.response
         ? {
@@ -94,7 +95,7 @@ export class ExecutionService {
 
   private executeFilterStep(step: FilterStep, ctx: any): boolean {
     for (const condition of step.conditions) {
-      const value = _.get(ctx, condition.path);
+      const value = get(ctx, condition.path);
       const target = condition.value;
 
       if (condition.op === "eq" && value !== target) return false;
@@ -105,23 +106,24 @@ export class ExecutionService {
 
   private executeLogStep(step: LogStep, ctx: any): void {
     const message = this.applyTemplate(step.message, ctx);
-    console.log(`[Workflow Log] ${message}`);
+    // Structured log
+    logger.info({ step: "log", message }, `[WORKFLOW_LOG] ${message}`);
   }
 
   private executeTransformStep(step: TransformStep, ctx: any): void {
     for (const op of step.ops) {
       switch (op.op) {
         case "default": {
-          const current = _.get(ctx, op.path);
+          const current = get(ctx, op.path);
           if (current === undefined || current === null || current === "") {
-            _.set(ctx, op.path, op.value);
+            set(ctx, op.path, op.value);
           }
           break;
         }
         case "template": {
           // generic template replacement {{var}}
           const processed = this.applyTemplate(op.template, ctx);
-          _.set(ctx, op.to, processed);
+          set(ctx, op.to, processed);
           break;
         }
         case "pick": {
@@ -132,9 +134,9 @@ export class ExecutionService {
           // Ideally we should replace the keys of ctx.
           const newCtx = {};
           for (const path of op.paths) {
-            const val = _.get(ctx, path);
+            const val = get(ctx, path);
             if (val !== undefined) {
-              _.set(newCtx, path, val);
+              set(newCtx, path, val);
             }
           }
 
@@ -223,7 +225,7 @@ export class ExecutionService {
 
   private applyTemplate(template: string, ctx: any): string {
     return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
-      const val = _.get(ctx, path.trim());
+      const val = get(ctx, path.trim());
       return val === undefined || val === null ? "" : String(val);
     });
   }

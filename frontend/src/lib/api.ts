@@ -1,17 +1,32 @@
-import { Workflow, CreateWorkflowDTO, UpdateWorkflowDTO } from "./types";
+import {
+  Workflow,
+  WorkflowListItem,
+  CreateWorkflowDTO,
+  UpdateWorkflowDTO,
+} from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api`;
 
-export async function fetchWorkflows(): Promise<Workflow[]> {
-  const res = await fetch(`${API_BASE}/workflows`);
-  if (!res.ok) throw new Error("Failed to fetch workflows");
+async function handleResponse(res: Response) {
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    // Backend returns { message: "..." } in our new error handler
+    // Older or other parts might return { error: "..." }
+    const msg =
+      errorData.message || errorData.error || "An unexpected error occurred";
+    throw new Error(msg);
+  }
   return res.json();
+}
+
+export async function fetchWorkflows(): Promise<WorkflowListItem[]> {
+  const res = await fetch(`${API_BASE}/workflows`);
+  return handleResponse(res);
 }
 
 export async function fetchWorkflow(id: string): Promise<Workflow> {
   const res = await fetch(`${API_BASE}/workflows/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch workflow");
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function createWorkflow(
@@ -22,15 +37,7 @@ export async function createWorkflow(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    let msg = errorData.error || "Failed to create workflow";
-    if (errorData.details) {
-      msg = errorData.details.map((d: any) => d.message).join("\n");
-    }
-    throw new Error(msg);
-  }
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function updateWorkflow(
@@ -42,15 +49,7 @@ export async function updateWorkflow(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    let msg = errorData.error || "Failed to update workflow";
-    if (errorData.details) {
-      msg = errorData.details.map((d: any) => d.message).join("\n");
-    }
-    throw new Error(msg);
-  }
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function deleteWorkflow(id: string): Promise<void> {
@@ -58,8 +57,9 @@ export async function deleteWorkflow(id: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) {
-    // Delete might not return JSON, attempt to read anyway
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to delete workflow");
+    const msg =
+      errorData.message || errorData.error || "Failed to delete workflow";
+    throw new Error(msg);
   }
 }

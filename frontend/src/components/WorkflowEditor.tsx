@@ -8,6 +8,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import styles from "./WorkflowEditor.module.css";
 import { X, Save } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
+import { toast } from "sonner";
+import { handleError } from "@/lib/error-handler";
 
 interface WorkflowEditorProps {
   workflow?: Workflow | null;
@@ -81,26 +83,29 @@ export default function WorkflowEditor({
         );
       }
 
-      const dto: CreateWorkflowDTO = { name, enabled, steps: parsedSteps };
       if (workflow) {
-        return updateWorkflow(workflow.id, {
+        const updateDto: UpdateWorkflowDTO = {
           name,
           enabled,
           steps: parsedSteps,
-        });
+        };
+        return updateWorkflow(workflow.id, updateDto);
       } else {
-        return createWorkflow(dto);
+        const createDto: CreateWorkflowDTO = {
+          name,
+          enabled,
+          steps: parsedSteps,
+        };
+        return createWorkflow(createDto);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast.success(workflow ? "Workflow updated" : "Workflow created");
       onClose();
     },
     onError: (e: any) => {
-      // If the error message is "Validation failed", there might be details.
-      // But query mutation error 'e' is just the Error object we threw in api.ts.
-      // We could pass more info through api.ts if we wanted.
-      alert("Error saving workflow: " + e.message);
+      handleError(e, "Error saving workflow");
     },
   });
 

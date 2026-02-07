@@ -24,7 +24,7 @@ registry.register("HttpRequestStep", HttpRequestStepSchema);
 registry.register("WorkflowStep", StepSchema);
 
 const WorkflowResponseSchema = z.object({
-  id: z.string().or(z.number()), // BigInt serialized
+  id: z.number(), // Normal Int
   name: z.string(),
   enabled: z.boolean(),
   triggerPath: z.string(),

@@ -7,7 +7,7 @@ else
   docker-compose up -d
   echo "Waiting for database to be ready..."
   sleep 5
-  (cd backend && npx prisma db push)
+  (cd backend && npx prisma generate && npx prisma migrate deploy)
 fi
 
 (cd backend && npm run dev) &

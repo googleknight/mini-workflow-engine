@@ -84,8 +84,8 @@
 
 .input:focus {
   outline: none;
-  ring: 2px solid var(--ring);
   border-color: var(--ring);
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
 .checkboxLabel {

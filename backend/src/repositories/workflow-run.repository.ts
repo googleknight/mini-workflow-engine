@@ -1,8 +1,8 @@
-import { PrismaClient, WorkflowRun } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import prisma from "../lib/prisma";
 
 export interface CreateRunDTO {
-  workflowId: bigint;
+  workflowId: number;
   status: "success" | "skipped" | "failed";
   startTime: Date;
   endTime?: Date;
@@ -37,7 +37,7 @@ export class WorkflowRunRepository {
     });
   }
 
-  async update(id: bigint, data: UpdateRunDTO) {
+  async update(id: number, data: UpdateRunDTO) {
     return this.prisma.workflowRun.update({
       where: { id },
       data,

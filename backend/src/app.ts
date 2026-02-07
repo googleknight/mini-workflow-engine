@@ -24,4 +24,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 app.use("/api/workflows", workflowRoutes);
 app.use("/t", triggerRoutes);
 
+import { errorHandler } from "./middleware/error-handler";
+app.use(errorHandler);
+
 export default app;
