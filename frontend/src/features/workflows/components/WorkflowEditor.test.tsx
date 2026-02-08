@@ -1,17 +1,12 @@
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from "@testing-library/react";
-import WorkflowEditor from "../WorkflowEditor";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import WorkflowEditor from "./WorkflowEditor";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as api from "@/lib/api";
+import * as api from "../api";
+import { PLACEHOLDERS, DEFAULT_WORKFLOW_STEPS } from "@/lib/constants";
 
 // Mock the API calls
-jest.mock("@/lib/api");
+jest.mock("../api");
 const mockedApi = api as jest.Mocked<typeof api>;
 
 // Mock sonner
@@ -61,14 +56,31 @@ describe("WorkflowEditor", () => {
     );
   };
 
-  it("renders create mode correctly", () => {
+  it("renders create mode correctly with accessibility attributes", () => {
     renderWithClient(<WorkflowEditor onClose={mockOnClose} />);
 
+    // Dialog accessibility
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveAttribute("aria-labelledby");
+
     expect(screen.getByText("Create Workflow")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("My Workflow")).toHaveValue("");
-    expect(screen.getByRole("checkbox")).toBeChecked();
-    // Default steps should be present
-    expect(screen.getByTestId("monaco-editor")).not.toHaveValue("[]");
+
+    // Form fields accessibility
+    const nameInput = screen.getByLabelText(/name/i);
+    expect(nameInput).toHaveAttribute(
+      "placeholder",
+      PLACEHOLDERS.WORKFLOW_NAME,
+    );
+    expect(screen.getByLabelText(/enable/i)).toBeChecked();
+
+    // Default steps
+    expect(screen.getByTestId("monaco-editor")).toHaveValue(
+      JSON.stringify(DEFAULT_WORKFLOW_STEPS, null, 2),
+    );
+
+    // Close button accessibility
+    expect(screen.getByLabelText(/close modal/i)).toBeInTheDocument();
   });
 
   it("renders edit mode correctly", () => {
@@ -85,8 +97,8 @@ describe("WorkflowEditor", () => {
     );
 
     expect(screen.getByText("Edit Workflow")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Existing Workflow")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByLabelText(/name/i)).toHaveValue("Existing Workflow");
+    expect(screen.getByLabelText(/enable/i)).not.toBeChecked();
     expect(screen.getByTestId("monaco-editor")).toHaveValue(
       JSON.stringify(workflow.steps, null, 2),
     );
@@ -97,8 +109,8 @@ describe("WorkflowEditor", () => {
 
     renderWithClient(<WorkflowEditor onClose={mockOnClose} />);
 
-    // Fill name
-    fireEvent.change(screen.getByPlaceholderText("My Workflow"), {
+    // Fill name using label
+    fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "New Flow" },
     });
 
@@ -110,7 +122,6 @@ describe("WorkflowEditor", () => {
         expect.objectContaining({
           name: "New Flow",
           enabled: true,
-          // We verify steps are passed, exact content check might be verbose due to default steps
           steps: expect.any(Array),
         }),
       );
@@ -137,8 +148,8 @@ describe("WorkflowEditor", () => {
       <WorkflowEditor onClose={mockOnClose} workflow={workflow as any} />,
     );
 
-    // Change name
-    fireEvent.change(screen.getByDisplayValue("Old Name"), {
+    // Change name using label
+    fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "Updated Name" },
     });
 

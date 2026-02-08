@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchWorkflows, deleteWorkflow, updateWorkflow } from "@/lib/api";
 import { Edit2, Trash2, Power, PowerOff, Copy, Check } from "lucide-react";
 import styles from "./WorkflowList.module.css";
 import { toast } from "sonner";
-import { handleError } from "@/lib/error-handler";
+import { MESSAGES, APP_CONFIG, LABELS } from "@/lib/constants";
+import { useWorkflows } from "../hooks/useWorkflows";
 
 interface WorkflowListProps {
   onEdit: (workflowId: string) => void;
@@ -14,50 +13,39 @@ interface WorkflowListProps {
 
 export default function WorkflowList({ onEdit }: WorkflowListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
   const {
-    data: workflows,
+    workflows,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteWorkflow,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      toast.success("Workflow deleted");
-    },
-    onError: (e) => handleError(e, "Failed to delete workflow"),
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
-      updateWorkflow(id, { enabled }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      toast.success(`Workflow ${variables.enabled ? "enabled" : "disabled"}`);
-    },
-    onError: (e) => handleError(e, "Failed to update workflow"),
-  });
+    deleteWorkflow,
+    toggleWorkflow,
+    isToggling,
+    isDeleting,
+  } = useWorkflows();
 
   const copyToClipboard = (path: string, id: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-    const fullUrl = `${baseUrl}/t/${path}`;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    const fullUrl = new URL(
+      `${APP_CONFIG.API_T_PATH}${path}`,
+      baseUrl,
+    ).toString();
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(id);
-    toast.success("Trigger URL copied to clipboard");
-    setTimeout(() => setCopiedId(null), 2000);
+    toast.success(MESSAGES.COPY_SUCCESS);
+    setTimeout(() => setCopiedId(null), APP_CONFIG.COPY_TIMEOUT);
   };
 
   if (isLoading)
-    return <div className={styles.loading}>Loading workflows...</div>;
+    return (
+      <div className={styles.loading} role="status" aria-live="polite">
+        {MESSAGES.LOADING_WORKFLOWS}
+      </div>
+    );
+
   if (error)
     return (
-      <div className={styles.error}>
-        Error loading workflows. Is the backend running?
+      <div className={styles.error} role="alert">
+        {MESSAGES.LOAD_ERROR}
       </div>
     );
 
@@ -66,17 +54,17 @@ export default function WorkflowList({ onEdit }: WorkflowListProps) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Trigger URL</th>
-            <th>Actions</th>
+            <th scope="col">{LABELS.NAME}</th>
+            <th scope="col">{LABELS.STATUS}</th>
+            <th scope="col">{LABELS.TRIGGER_URL}</th>
+            <th scope="col">{LABELS.ACTIONS}</th>
           </tr>
         </thead>
         <tbody>
           {workflows?.length === 0 && (
             <tr>
               <td colSpan={4} style={{ textAlign: "center", padding: "2rem" }}>
-                No workflows found. Create one to get started.
+                {MESSAGES.NO_WORKFLOWS}
               </td>
             </tr>
           )}
@@ -89,19 +77,26 @@ export default function WorkflowList({ onEdit }: WorkflowListProps) {
                 <div className={styles.statusCell}>
                   <span
                     className={`${styles.statusDot} ${workflow.enabled ? styles.enabled : styles.disabled}`}
+                    aria-hidden="true"
                   ></span>
-                  {workflow.enabled ? "Enabled" : "Disabled"}
+                  <span>
+                    {workflow.enabled ? LABELS.ENABLED : LABELS.DISABLED}
+                  </span>
                 </div>
               </td>
               <td>
                 <div className={styles.triggerCell}>
-                  <code>/t/{workflow.triggerPath}</code>
+                  <code>
+                    {APP_CONFIG.API_T_PATH}
+                    {workflow.triggerPath}
+                  </code>
                   <button
                     onClick={() =>
                       copyToClipboard(workflow.triggerPath, workflow.id)
                     }
                     className={styles.iconBtn}
-                    title="Copy Trigger URL"
+                    title={LABELS.COPY_TRIGGER_URL}
+                    aria-label={`Copy trigger URL for ${workflow.name}`}
                   >
                     {copiedId === workflow.id ? (
                       <Check size={14} className={styles.copySuccess} />
@@ -115,14 +110,19 @@ export default function WorkflowList({ onEdit }: WorkflowListProps) {
                 <div className={styles.actions}>
                   <button
                     onClick={() =>
-                      toggleMutation.mutate({
+                      toggleWorkflow({
                         id: workflow.id,
                         enabled: !workflow.enabled,
                       })
                     }
-                    title={workflow.enabled ? "Disable" : "Enable"}
+                    title={workflow.enabled ? LABELS.DISABLE : LABELS.ENABLE}
+                    aria-label={
+                      workflow.enabled
+                        ? `Disable ${workflow.name}`
+                        : `Enable ${workflow.name}`
+                    }
                     className={styles.iconBtn}
-                    disabled={toggleMutation.isPending}
+                    disabled={isToggling}
                   >
                     {workflow.enabled ? (
                       <Power size={18} />
@@ -132,24 +132,22 @@ export default function WorkflowList({ onEdit }: WorkflowListProps) {
                   </button>
                   <button
                     onClick={() => onEdit(workflow.id)}
-                    title="Edit"
+                    title={LABELS.EDIT}
+                    aria-label={`Edit ${workflow.name}`}
                     className={styles.iconBtn}
                   >
                     <Edit2 size={18} />
                   </button>
                   <button
                     onClick={() => {
-                      if (
-                        confirm(
-                          "Are you sure you want to delete this workflow?",
-                        )
-                      ) {
-                        deleteMutation.mutate(workflow.id);
+                      if (confirm(MESSAGES.CONFIRM_DELETE)) {
+                        deleteWorkflow(workflow.id);
                       }
                     }}
-                    title="Delete"
+                    title={LABELS.DELETE}
+                    aria-label={`Delete ${workflow.name}`}
                     className={`${styles.iconBtn} ${styles.danger}`}
-                    disabled={deleteMutation.isPending}
+                    disabled={isDeleting}
                   >
                     <Trash2 size={18} />
                   </button>

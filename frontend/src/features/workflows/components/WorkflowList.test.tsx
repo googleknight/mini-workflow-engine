@@ -6,11 +6,12 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import WorkflowList from "../WorkflowList";
+import WorkflowList from "./WorkflowList";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as api from "@/lib/api";
+import * as api from "../api";
+import { MESSAGES } from "@/lib/constants";
 
-jest.mock("@/lib/api");
+jest.mock("../api");
 const mockedApi = api as jest.Mocked<typeof api>;
 
 jest.mock("sonner", () => ({
@@ -66,8 +67,8 @@ describe("WorkflowList", () => {
     // 1. Check rendering
     await waitFor(() => screen.getByText("Workflow 1"));
 
-    // 2. Check toggle
-    const toggleBtn = screen.getByTitle("Disable");
+    // 2. Check toggle (Accessibility: aria-label)
+    const toggleBtn = screen.getByLabelText("Disable Workflow 1");
     await act(async () => {
       fireEvent.click(toggleBtn);
     });
@@ -75,25 +76,37 @@ describe("WorkflowList", () => {
       expect(mockedApi.updateWorkflow).toHaveBeenCalled();
     });
 
-    // 3. Check delete
-    const deleteBtn = screen.getByTitle("Delete");
+    // 3. Check delete (Accessibility: aria-label, Use constant for confirm)
+    const deleteBtn = screen.getByLabelText("Delete Workflow 1");
     await act(async () => {
       fireEvent.click(deleteBtn);
     });
-    expect(mockConfirm).toHaveBeenCalled();
+    expect(mockConfirm).toHaveBeenCalledWith(MESSAGES.CONFIRM_DELETE);
     await waitFor(() => {
       expect(mockedApi.deleteWorkflow).toHaveBeenCalled();
     });
 
-    // 4. Check edit
-    const editBtn = screen.getByTitle("Edit");
+    // 4. Check edit (Accessibility: aria-label)
+    const editBtn = screen.getByLabelText("Edit Workflow 1");
     fireEvent.click(editBtn);
     expect(mockOnEdit).toHaveBeenCalledWith("1");
+
+    // 5. Check copy (Accessibility: aria-label)
+    const copyBtn = screen.getByLabelText("Copy trigger URL for Workflow 1");
+    expect(copyBtn).toBeInTheDocument();
   });
 
   it("renders loading and error states", async () => {
     mockedApi.fetchWorkflows.mockRejectedValue(new Error("Fail"));
     renderWithClient(<WorkflowList onEdit={mockOnEdit} />);
-    await waitFor(() => screen.getByText(/error loading/i));
+
+    // Check loading state accessibility
+    expect(screen.getByRole("status")).toBeInTheDocument();
+
+    // Check error state accessibility and message constant
+    await waitFor(() => {
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(MESSAGES.LOAD_ERROR);
+    });
   });
 });
