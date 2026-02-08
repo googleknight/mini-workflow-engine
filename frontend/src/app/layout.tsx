@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "sonner";
 import QueryProvider from "@/providers/QueryProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 
@@ -10,8 +11,6 @@ export const metadata: Metadata = {
     icon: "/favicon.png",
   },
 };
-
-import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
