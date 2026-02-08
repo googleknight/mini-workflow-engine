@@ -39,7 +39,7 @@ registry.register("Workflow", WorkflowResponseSchema);
 // Define Paths
 registry.registerPath({
   method: "post",
-  path: "/workflows",
+  path: "/api/workflows",
   summary: "Create a new workflow",
   request: {
     body: {
@@ -67,7 +67,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/workflows",
+  path: "/api/workflows",
   summary: "List all workflows",
   responses: {
     200: {
@@ -83,7 +83,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/workflows/{id}",
+  path: "/api/workflows/{id}",
   summary: "Get a workflow by ID",
   request: {
     params: z.object({ id: z.string() }),
@@ -134,7 +134,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/workflows/{id}",
+  path: "/api/workflows/{id}",
   summary: "Delete a workflow",
   request: {
     params: z.object({ id: z.string() }),
@@ -142,6 +142,47 @@ registry.registerPath({
   responses: {
     204: {
       description: "Workflow deleted successfully",
+    },
+    404: {
+      description: "Workflow not found",
+    },
+  },
+});
+const WorkflowRunResponseSchema = z.object({
+  runId: z.string(),
+  status: z.string(), // SUCCESS, SKIPPED, FAILED
+  error: z.string().optional(),
+});
+
+registry.register("WorkflowRunResponse", WorkflowRunResponseSchema);
+
+registry.registerPath({
+  method: "post",
+  path: "/t/{triggerPath}",
+  summary: "Trigger a workflow",
+  description:
+    "Executes the workflow associated with the trigger path synchronously. The request body is used as the initial context (ctx).",
+  request: {
+    params: z.object({ triggerPath: z.string() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.record(z.string(), z.unknown()),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Workflow executed successfully",
+      content: {
+        "application/json": {
+          schema: WorkflowRunResponseSchema,
+        },
+      },
+    },
+    403: {
+      description: "Workflow is disabled",
     },
     404: {
       description: "Workflow not found",
@@ -158,5 +199,5 @@ export const openApiDocument = generator.generateDocument({
     title: "Mini Workflow Engine API",
     description: "API for managing and triggering workflows",
   },
-  servers: [{ url: "/api" }], // Adjust if serving globally or under /api
+  servers: [{ url: "/" }], // Adjust if serving globally or under /api
 });
