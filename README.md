@@ -37,7 +37,7 @@ To start the database, run migrations, and launch both frontend and backend serv
 
 - Start the PostgreSQL container via `docker-compose`.
 - Generate Prisma client and apply database migrations.
-- Start the backend server on [http://localhost:3001](http://localhost:3001).
+- Start the backend server on [http://localhost:4000](http://localhost:4000).
 - Start the frontend server on [http://localhost:3000](http://localhost:3000).
 
 ---
@@ -64,7 +64,7 @@ docker-compose down -v
 ## 📖 API Documentation
 
 Once the backend is running, you can access the Interactive Swagger UI at:
-[http://localhost:3001/api-docs](http://localhost:3001/api-docs)
+[http://localhost:4000/api-docs](http://localhost:4000/api-docs)
 
 ## 🧪 Testing
 
