@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, RunStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 
 export interface CreateRunDTO {
   workflowId: number;
-  status: "success" | "skipped" | "failed";
+  status: RunStatus;
   startTime: Date;
   endTime?: Date;
   errorMessage?: string;
@@ -11,7 +11,7 @@ export interface CreateRunDTO {
 }
 
 export interface UpdateRunDTO {
-  status?: "success" | "skipped" | "failed";
+  status?: RunStatus;
   endTime?: Date;
   errorMessage?: string;
   failureMeta?: any;

@@ -11,6 +11,13 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { toast } from "sonner";
 import { handleError } from "@/lib/error-handler";
 
+import {
+  StepType,
+  TransformOperator,
+  HttpMethod,
+  HttpBodyMode,
+} from "@/lib/enums";
+
 interface WorkflowEditorProps {
   workflow?: Workflow | null;
   onClose: () => void;
@@ -38,22 +45,26 @@ export default function WorkflowEditor({
         JSON.stringify(
           [
             {
-              type: "transform",
+              type: StepType.TRANSFORM,
               ops: [
-                { op: "default", path: "severity", value: "info" },
                 {
-                  op: "template",
+                  op: TransformOperator.DEFAULT,
+                  path: "severity",
+                  value: "info",
+                },
+                {
+                  op: TransformOperator.TEMPLATE,
                   to: "msg",
                   template: "Log: {{message}} ({{severity}})",
                 },
               ],
             },
             {
-              type: "http_request",
-              method: "POST",
+              type: StepType.HTTP_REQUEST,
+              method: HttpMethod.POST,
               url: "https://webhook.site/REPLACE_WITH_YOUR_UUID",
               body: {
-                mode: "custom",
+                mode: HttpBodyMode.CUSTOM,
                 value: { text: "{{msg}}" },
               },
             },
