@@ -2,13 +2,14 @@ import express from "express";
 import cors from "cors";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+
+extendZodWithOpenApi(z);
+
 import workflowRoutes from "./routes/workflow.routes";
 import triggerRoutes from "./routes/trigger.routes";
 import swaggerUi from "swagger-ui-express";
 import { openApiDocument } from "./docs/openapi";
 import { errorHandler } from "./middleware/error-handler";
-
-extendZodWithOpenApi(z);
 
 const app = express();
 

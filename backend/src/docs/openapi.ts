@@ -1,9 +1,12 @@
+import { z } from "zod";
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
   extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
-import { z } from "zod";
+
+extendZodWithOpenApi(z);
+
 import {
   CreateWorkflowSchema,
   UpdateWorkflowSchema,
@@ -12,8 +15,6 @@ import {
   TransformStepSchema,
   HttpRequestStepSchema,
 } from "../schemas/workflow.schema";
-
-extendZodWithOpenApi(z);
 
 const registry = new OpenAPIRegistry();
 
