@@ -1,6 +1,6 @@
 # Workflow Engine – Requirements
 
-This document captures the complete and final set of requirements for the Workflow Engine assignment, incorporating clarifications provided by the hiring manager.
+This document captures the complete and final set of requirements for the Workflow Engine project.
 
 ---
 
